@@ -955,6 +955,67 @@
       cursor: pointer;
     }
 
+    .btn-random-video {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text-sub);
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 0.5rem 0.85rem;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn-random-video:hover {
+      color: #fff;
+      background: var(--bg-card);
+      border-color: var(--border-hover);
+    }
+
+    .guest-tags-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      overflow-x: auto;
+      padding-top: 0.65rem;
+      border-top: 1px dashed rgba(255, 255, 255, 0.08);
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .guest-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+
+    .guest-chip {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--text-sub);
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .guest-chip:hover {
+      background: var(--bg-card-hover);
+      color: #fff;
+      border-color: var(--border-hover);
+    }
+
     .view-toggle-btn {
       background: var(--bg);
       border: 1px solid var(--border);
@@ -1358,6 +1419,9 @@
               <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
               Смотреть сейчас
             </button>
+            <button class="btn-secondary-hero" onclick="playRandomVideo()">
+              🎲 Случайное видео
+            </button>
             <button class="btn-secondary-hero" onclick="toggleFavorite('0-vDEpMc5II')">
               ❤️ В избранное
             </button>
@@ -1491,6 +1555,19 @@
             <div class="filter-level-2" id="subcat-pills-container">
               <!-- Rendered dynamically by JS -->
             </div>
+            <div class="guest-tags-row">
+              <span class="guest-label">Быстрые метки:</span>
+              <button class="guest-chip" onclick="quickFilterKeyword('Соболев')">#Соболев</button>
+              <button class="guest-chip" onclick="quickFilterKeyword('Похабов')">#Похабов</button>
+              <button class="guest-chip" onclick="quickFilterKeyword('Джагаспанян')">#Джагаспанян</button>
+              <button class="guest-chip" onclick="quickFilterKeyword('Лимарев')">#Лимарев</button>
+              <button class="guest-chip" onclick="quickFilterKeyword('Шевцов')">#Шевцов</button>
+              <button class="guest-chip" onclick="quickFilterKeyword('Енина')">#Енина</button>
+              <button class="guest-chip" onclick="quickFilterKeyword('Тестостерон')">#Тестостерон</button>
+              <button class="guest-chip" onclick="quickFilterKeyword('Дофамин')">#Дофамин</button>
+              <button class="guest-chip" onclick="quickFilterKeyword('Воздержание')">#Воздержание</button>
+              <button class="guest-chip" onclick="quickFilterKeyword('женщин')">#Отношения</button>
+            </div>
           </div>
 
           <!-- Search & Controls Toolbar -->
@@ -1504,6 +1581,10 @@
             <div class="toolbar-controls">
               <span class="result-count-badge" id="result-count-text">Найдено: 967 видео</span>
               
+              <button class="btn-random-video" onclick="playRandomVideo()" title="Включить случайное видео">
+                🎲 Случайное
+              </button>
+
               <select id="sort-select" class="sort-select" onchange="handleSortChange(event)">
                 <option value="default">По порядку архива</option>
                 <option value="newest">С конца архива</option>
@@ -1847,11 +1928,30 @@
           heading.textContent = `Подкатегории «${catObj.name}»:`;
           subContainer.innerHTML = catObj.subs.map(sub => `
             <button class="subcat-pill ${activeSubId === sub.id ? 'active' : ''}" onclick="selectSubcategory('${sub.id}')">
-              ${sub.name}
+              <span>${sub.name}</span>
+              ${sub.id !== 'all' ? `<span style="opacity:0.65; font-size:0.75rem; margin-left:3px;">(${sub.count})</span>` : ''}
             </button>
           `).join('');
         }
       }
+    }
+
+    function quickFilterKeyword(word) {
+      showView('catalog');
+      const input = document.getElementById('catalog-search');
+      if (input) input.value = word;
+      searchQuery = word;
+      const clearBtn = document.getElementById('search-clear');
+      if (clearBtn) clearBtn.style.display = 'block';
+      renderCatalogGrid(true);
+      document.querySelector('.catalog-header-panel')?.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function playRandomVideo() {
+      const items = getFilteredItems();
+      if (items.length === 0) return;
+      const rand = items[Math.floor(Math.random() * items.length)];
+      openPlayer(rand.id);
     }
 
     function selectSubcategory(subId) {
