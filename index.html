@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>АРСЕН МАРКАРЯН // ОНЛАЙН-КИНОТЕАТР И АРХИВ (967 ЗАПИСЕЙ)</title>
+  <title>АРСЕН МАРКАРЯН // ОНЛАЙН-КИНОТЕАТР И АРХИВ (967 ВЫПУСКОВ)</title>
   
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -118,6 +118,13 @@
       max-width: 1440px;
       margin: 0 auto;
       padding: 1.5rem 1.5rem 0.5rem 1.5rem;
+      transition: max-width 0.3s ease;
+    }
+
+    .cinema-stage-wrapper.theater-expanded {
+      max-width: 100%;
+      padding-left: 0.5rem;
+      padding-right: 0.5rem;
     }
 
     .stage-card {
@@ -129,6 +136,15 @@
       display: grid;
       grid-template-columns: 1fr 340px;
       gap: 0;
+      transition: all 0.3s ease;
+    }
+
+    .cinema-stage-wrapper.theater-expanded .stage-card {
+      grid-template-columns: 1fr;
+    }
+
+    .cinema-stage-wrapper.theater-expanded .stage-queue-col {
+      display: none;
     }
 
     @media (max-width: 1024px) {
@@ -922,7 +938,7 @@
       border: 1px solid var(--border-strong);
       border-radius: var(--radius-md);
       overflow: hidden;
-      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85);
       z-index: 60;
       display: none;
       animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -931,6 +947,57 @@
     @keyframes slideUp {
       from { transform: translateY(20px); opacity: 0; }
       to { transform: translateY(0); opacity: 1; }
+    }
+
+    .mini-dock-preview {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .mini-dock-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.85;
+    }
+
+    .mini-dock-preview-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.4);
+      gap: 0.5rem;
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .equalizer-anim {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 14px;
+    }
+
+    .equalizer-bar {
+      width: 3px;
+      background: var(--accent);
+      animation: eqBounce 1s infinite alternate ease-in-out;
+    }
+
+    .equalizer-bar:nth-child(2) { animation-delay: 0.2s; }
+    .equalizer-bar:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes eqBounce {
+      from { height: 3px; }
+      to { height: 14px; }
     }
 
     .mini-dock-bar {
@@ -1020,7 +1087,7 @@
   <section class="cinema-stage-wrapper" id="stageSection">
     <div class="stage-card">
       <!-- Player Col -->
-      <div class="stage-player-col">
+      <div class="stage-player-col" id="stagePlayerCol">
         <div class="player-screen-wrap" id="playerScreenWrap">
           <div id="playerFrameContainer"></div>
           
@@ -1063,6 +1130,7 @@
             </div>
 
             <div class="ctrl-group">
+              <button class="ctrl-btn" id="btnTheaterToggle" title="Театральный режим (на всю ширину)">⛶ Театр</button>
               <button class="ctrl-btn" id="btnStageFav">★ В избранное</button>
               <button class="ctrl-btn" id="btnStageWatched">✓ Просмотрено</button>
               <button class="ctrl-btn" id="btnShare">🔗 Ссылка</button>
@@ -1148,11 +1216,21 @@
 
   <!-- FLOATING MINI-PLAYER DOCK (появляется при скролле вниз) -->
   <div class="mini-dock" id="miniDock">
-    <div id="miniPlayerHost" style="aspect-ratio: 16 / 9; background: #000;"></div>
+    <div class="mini-dock-preview" id="miniDockPreview" title="Нажмите, чтобы вернуться к плееру">
+      <img id="miniThumbImg" src="" alt="">
+      <div class="mini-dock-preview-overlay">
+        <div class="equalizer-anim">
+          <div class="equalizer-bar"></div>
+          <div class="equalizer-bar"></div>
+          <div class="equalizer-bar"></div>
+        </div>
+        <span>ИГРАЕТ В КИНОЗАЛЕ</span>
+      </div>
+    </div>
     <div class="mini-dock-bar">
       <span class="mini-title" id="miniTitle">Сейчас играет</span>
       <div style="display: flex; gap: 0.3rem;">
-        <button class="ctrl-btn" id="miniJumpTop" style="padding: 0.3rem 0.5rem;" title="К кинотеатру вверху">↑ Кинозал</button>
+        <button class="ctrl-btn" id="miniJumpTop" style="padding: 0.3rem 0.5rem;" title="К кинотеатру вверху">↑ Наверх</button>
         <button class="ctrl-btn" id="miniClose" style="padding: 0.3rem 0.5rem;" title="Скрыть мини-окно">✕</button>
       </div>
     </div>
@@ -1210,8 +1288,16 @@
 
     let favorites = JSON.parse(localStorage.getItem('vault_favs') || '[]');
     let watched = JSON.parse(localStorage.getItem('vault_watched') || '[]');
-    let lastSavedVideoId = localStorage.getItem('vault_last_id') || ITEMS[0].id;
     let autoPlayNext = localStorage.getItem('vault_autoplay') !== 'false';
+    let currentSpeed = parseFloat(localStorage.getItem('vault_speed') || '1');
+
+    // Hash video support (#v=ID)
+    function getHashVideoId() {
+      const m = window.location.hash.match(/#v=([a-zA-Z0-9_-]+)/);
+      return m ? m[1] : null;
+    }
+
+    let lastSavedVideoId = getHashVideoId() || localStorage.getItem('vault_last_id') || ITEMS[0].id;
 
     let filteredItems = [];
     let currentPlayingItem = null;
@@ -1219,6 +1305,7 @@
     let isYtReady = false;
 
     // DOM Elements
+    const stageSection = document.getElementById('stageSection');
     const playerFrameContainer = document.getElementById('playerFrameContainer');
     const playerErrorBanner = document.getElementById('playerErrorBanner');
     const errorDirectYtBtn = document.getElementById('errorDirectYtBtn');
@@ -1233,6 +1320,7 @@
     const btnNext = document.getElementById('btnNext');
     const btnStageShuffle = document.getElementById('btnStageShuffle');
     const btnShare = document.getElementById('btnShare');
+    const btnTheaterToggle = document.getElementById('btnTheaterToggle');
     const autoPlayNextCheck = document.getElementById('autoPlayNextCheck');
     const queueList = document.getElementById('queueList');
 
@@ -1252,6 +1340,8 @@
     const modeTable = document.getElementById('modeTable');
 
     const miniDock = document.getElementById('miniDock');
+    const miniDockPreview = document.getElementById('miniDockPreview');
+    const miniThumbImg = document.getElementById('miniThumbImg');
     const miniTitle = document.getElementById('miniTitle');
     const miniJumpTop = document.getElementById('miniJumpTop');
     const miniClose = document.getElementById('miniClose');
@@ -1283,7 +1373,7 @@
     // YouTube Iframe API initialization
     window.onYouTubeIframeAPIReady = function() {
       isYtReady = true;
-      mountPlayer(currentPlayingItem || getInitialVideo());
+      mountPlayer(currentPlayingItem || getInitialVideo(), false);
     };
 
     function getInitialVideo() {
@@ -1292,13 +1382,18 @@
     }
 
     // Play video directly on page
-    function playVideo(item, shouldScroll = false) {
+    function playVideo(item, shouldScroll = false, autoStart = true) {
       if (!item) return;
       currentPlayingItem = item;
       localStorage.setItem('vault_last_id', item.id);
+      
+      // Update hash without jumping
+      try {
+        history.replaceState(null, null, '#v=' + item.id);
+      } catch(e) {}
 
       // Auto-mark watched
-      if (!watched.includes(item.id)) {
+      if (autoStart && !watched.includes(item.id)) {
         watched.push(item.id);
         localStorage.setItem('vault_watched', JSON.stringify(watched));
       }
@@ -1310,15 +1405,20 @@
       stageCat.textContent = item.cat;
       stageDirectYt.href = item.url;
       miniTitle.textContent = item.title;
+      miniThumbImg.src = `https://i.ytimg.com/vi/${item.id}/mqdefault.jpg`;
 
       updateStageFavButton();
       updateStageWatchedButton();
       playerErrorBanner.classList.remove('active');
 
       if (isYtReady && ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
-        ytPlayer.loadVideoById(item.id);
+        if (autoStart) {
+          ytPlayer.loadVideoById(item.id);
+        } else {
+          ytPlayer.cueVideoById(item.id);
+        }
       } else {
-        mountPlayer(item);
+        mountPlayer(item, autoStart);
       }
 
       renderQueue();
@@ -1329,14 +1429,19 @@
       }
     }
 
-    function mountPlayer(item) {
+    function mountPlayer(item, autoStart = true) {
       if (!item) item = getInitialVideo();
       currentPlayingItem = item;
+      miniThumbImg.src = `https://i.ytimg.com/vi/${item.id}/mqdefault.jpg`;
 
-      // Create or replace iframe
+      const originParam = window.location.origin && window.location.origin.startsWith('http')
+        ? `&origin=${encodeURIComponent(window.location.origin)}`
+        : '';
+      const autoplayParam = autoStart ? '1' : '0';
+
       playerFrameContainer.innerHTML = `
         <iframe id="mainYtIframe"
-          src="https://www.youtube.com/embed/${item.id}?enablejsapi=1&autoplay=1&rel=0&modestbranding=1"
+          src="https://www.youtube.com/embed/${item.id}?enablejsapi=1&autoplay=${autoplayParam}&rel=0&modestbranding=1${originParam}"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowfullscreen>
         </iframe>
@@ -1346,6 +1451,7 @@
         try {
           ytPlayer = new YT.Player('mainYtIframe', {
             events: {
+              'onReady': onPlayerReady,
               'onStateChange': onPlayerStateChange,
               'onError': onPlayerError
             }
@@ -1353,6 +1459,12 @@
         } catch(e) {
           console.warn('YT Player init fallback:', e);
         }
+      }
+    }
+
+    function onPlayerReady(event) {
+      if (currentSpeed !== 1 && typeof ytPlayer.setPlaybackRate === 'function') {
+        ytPlayer.setPlaybackRate(currentSpeed);
       }
     }
 
@@ -1377,9 +1489,9 @@
       const list = filteredItems.length > 0 ? filteredItems : ITEMS;
       const idx = list.findIndex(i => i.id === currentPlayingItem?.id);
       if (idx >= 0 && idx < list.length - 1) {
-        playVideo(list[idx + 1]);
+        playVideo(list[idx + 1], false, true);
       } else if (list.length > 0) {
-        playVideo(list[0]);
+        playVideo(list[0], false, true);
       }
     }
 
@@ -1387,7 +1499,7 @@
       const list = filteredItems.length > 0 ? filteredItems : ITEMS;
       const idx = list.findIndex(i => i.id === currentPlayingItem?.id);
       if (idx > 0) {
-        playVideo(list[idx - 1]);
+        playVideo(list[idx - 1], false, true);
       }
     }
 
@@ -1395,7 +1507,7 @@
       const list = filteredItems.length > 0 ? filteredItems : ITEMS;
       if (list.length === 0) return;
       const rIdx = Math.floor(Math.random() * list.length);
-      playVideo(list[rIdx], true);
+      playVideo(list[rIdx], true, true);
       showToast('🎲 Выбран случайный материал');
     }
 
@@ -1403,7 +1515,6 @@
       const list = filteredItems.length > 0 ? filteredItems : ITEMS;
       const currIdx = list.findIndex(i => i.id === currentPlayingItem?.id);
       
-      // Show up to 25 items around current
       const start = Math.max(0, currIdx >= 0 ? currIdx : 0);
       const queueItems = list.slice(start, start + 25);
 
@@ -1423,7 +1534,7 @@
       queueList.querySelectorAll('.queue-item').forEach(el => {
         el.addEventListener('click', () => {
           const it = ITEMS.find(i => i.id === el.dataset.queueId);
-          if (it) playVideo(it);
+          if (it) playVideo(it, true, true);
         });
       });
     }
@@ -1670,7 +1781,7 @@
           if (e.target.closest('[data-fav-id]') || (e.target.tagName === 'A' && !e.target.classList.contains('play-trigger'))) return;
           const found = ITEMS.find(i => i.id === el.dataset.id);
           if (found) {
-            playVideo(found, true);
+            playVideo(found, true, true);
           }
         });
       });
@@ -1702,16 +1813,31 @@
 
     btnShare.addEventListener('click', () => {
       if (currentPlayingItem) {
-        navigator.clipboard.writeText(currentPlayingItem.url).then(() => {
-          showToast('✓ Ссылка скопирована в буфер');
+        const shareUrl = window.location.origin + window.location.pathname + '#v=' + currentPlayingItem.id;
+        navigator.clipboard.writeText(shareUrl).then(() => {
+          showToast('✓ Ссылка с таймлайном скопирована');
+        }).catch(() => {
+          navigator.clipboard.writeText(currentPlayingItem.url).then(() => {
+            showToast('✓ Ссылка YouTube скопирована');
+          });
         });
       }
+    });
+
+    // Theater mode toggle
+    btnTheaterToggle.addEventListener('click', () => {
+      const isExp = stageSection.classList.toggle('theater-expanded');
+      btnTheaterToggle.classList.toggle('active', isExp);
+      btnTheaterToggle.textContent = isExp ? '⛶ Обычный' : '⛶ Театр';
+      showToast(isExp ? 'Включен широкий режим' : 'Обычный режим');
     });
 
     // Speed buttons
     document.querySelectorAll('.speed-opt').forEach(b => {
       b.addEventListener('click', () => {
         const sp = parseFloat(b.dataset.speed);
+        currentSpeed = sp;
+        localStorage.setItem('vault_speed', sp);
         if (ytPlayer && typeof ytPlayer.setPlaybackRate === 'function') {
           ytPlayer.setPlaybackRate(sp);
         }
@@ -1792,6 +1918,10 @@
       document.getElementById('stageSection').scrollIntoView({ behavior: 'smooth' });
     });
 
+    miniDockPreview.addEventListener('click', () => {
+      document.getElementById('stageSection').scrollIntoView({ behavior: 'smooth' });
+    });
+
     miniClose.addEventListener('click', () => {
       miniDock.style.display = 'none';
       miniDockClosed = true;
@@ -1806,12 +1936,22 @@
       if (document.activeElement !== archSearch) {
         if (e.key === 'ArrowRight' && (e.metaKey || e.ctrlKey)) playNext();
         if (e.key === 'ArrowLeft' && (e.metaKey || e.ctrlKey)) playPrev();
+        if (e.key === 't' || e.key === 'T') btnTheaterToggle.click();
+      }
+    });
+
+    // Listen to hash changes (if user presses back/forward in browser)
+    window.addEventListener('hashchange', () => {
+      const hId = getHashVideoId();
+      if (hId && (!currentPlayingItem || currentPlayingItem.id !== hId)) {
+        const target = ITEMS.find(i => i.id === hId);
+        if (target) playVideo(target, false, true);
       }
     });
 
     // Boot
     const initialItem = getInitialVideo();
-    playVideo(initialItem, false);
+    playVideo(initialItem, false, false);
     renderCategories();
     applyFilter();
   </script>
